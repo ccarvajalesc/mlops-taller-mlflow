@@ -1,0 +1,122 @@
+services:
+
+
+  mysql_db:
+    image: mysql:8.0
+    container_name: mysql_mlops
+
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mlops_db
+      MYSQL_USER: mlops_user
+      MYSQL_PASSWORD: mlops_pass
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - mlops_net
+    
+
+  db_loader:
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql_db
+
+    depends_on:
+      - mysql_db
+    volumes:
+      - ./encoders:/app/encoders/
+    networks:
+      - mlops_net
+
+    restart: on-failure
+  
+  minio:
+    container_name: Minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=supersecret
+    image: quay.io/minio/minio:latest
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    networks:
+      - mlops_net
+
+    restart: unless-stopped
+  mlflow:
+    build:
+      context: /mlflow_compose/mlflow
+      # Assuming Dockerfile is in the mlflow directory
+      dockerfile: Dockerfile
+    container_name: MLflow
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: supersecret
+    depends_on:
+      - minio
+    ports:
+      - 5000:5000
+    volumes:
+      - ./mlflowdb:/app/mlflowdb
+
+    networks:
+      - mlops_net
+    restart: always
+
+  jupyter:
+    build:
+      context: .
+      # Assuming Dockerfile is in the mlflow directory
+      dockerfile: docker/Dockerfile.jupyter
+    container_name: Jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=supersecret
+      - PASSWORD=valentasecret
+    volumes:
+      - ./train.ipynb:/app/train.ipynb
+      - /mlflow_compose/notebooks:/app/mlflow_notebooks/      
+    depends_on:
+      - mlflow
+      - mysql_db
+      - db_loader
+    networks:
+      - mlops_net
+    restart: always
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - models_volume:/app/models
+    depends_on:
+      - jupyter
+      - mysql_db
+    networks:
+      - mlops_net
+
+
+volumes:
+  minio_data:
+      driver: local
+  models_volume:
+  mysql_data:
+networks:
+  mlops_net:
