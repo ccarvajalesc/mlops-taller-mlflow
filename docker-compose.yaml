@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
   mlflow:
     build:
-      context: /mlflow_compose/mlflow
+      context: ./mlflow_compose/mlflow
       # Assuming Dockerfile is in the mlflow directory
       dockerfile: Dockerfile
     container_name: MLflow
@@ -88,7 +88,7 @@ services:
       - PASSWORD=valentasecret
     volumes:
       - ./train.ipynb:/app/train.ipynb
-      - /mlflow_compose/notebooks:/app/mlflow_notebooks/      
+      - ./mlflow_compose/notebooks:/app/mlflow_notebooks/      
     depends_on:
       - mlflow
       - mysql_db

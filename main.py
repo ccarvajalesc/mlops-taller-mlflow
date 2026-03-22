@@ -60,7 +60,7 @@ model_map = {
 # Endpoint
 # ------------------------------------------------------------------------------
 
-@app.post("/predict")
+@app.post("/predic")
 async def predict_endpoint(
     models: Annotated[List[model_class], Query(...)],
     culmen_length_mm: float = Query(39),
