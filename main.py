@@ -6,6 +6,7 @@ from fastapi import FastAPI, Query
 import pandas as pd
 from typing import List, Annotated
 from enum import Enum
+from pathlib import Path
 import logging
 
 from predict import predict_new_data, load_model_from_mlflow, load_encoder
@@ -21,11 +22,17 @@ app = FastAPI(
     version="1.0.0",
 )
 
+log_path = Path("logs/app.log")
+
+# crea la carpeta si no existe
+log_path.parent.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
-    filename="logs/app.log",
+    filename=log_path,
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
 logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
